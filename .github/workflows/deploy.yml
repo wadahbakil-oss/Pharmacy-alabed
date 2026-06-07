@@ -1,17 +1,33 @@
-name: Deploy to GitHub Pages
+name: Build Android APK
 
 on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+  actions: write
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        
+      - name: Build APK
+        run: ./gradlew assembleRelease
+        
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/*.apk
