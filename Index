@@ -31,6 +31,7 @@
         .btn-sms { background: #2196F3; }
         .btn-danger { background: #dc3545; }
         .btn-save-cloud { background: #17a2b8; }
+        .btn-send-all { background: #FF9800; }
         .button-group { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
         .button-group button { flex: 1; font-size: 13px; padding: 10px; }
         .footer { text-align: center; color: white; margin-top: 15px; font-size: 11px; opacity: 0.8; }
@@ -64,12 +65,14 @@
         .activation-error.show { display: block; }
         .trial-info { background: #fff3cd; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; color: #856404; }
         .settings-btn { position: fixed; top: 10px; left: 10px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 40px; height: 40px; color: white; font-size: 18px; z-index: 100; cursor: pointer; }
-        .settings-modal { background: white; border-radius: 15px; padding: 20px; max-width: 90%; width: 320px; text-align: center; }
-        .settings-modal h3 { color: #1e5799; margin-bottom: 15px; }
         .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 100%; }
         .action-buttons button { width: 100%; margin: 0; padding: 8px 4px; font-size: 11px; min-height: 40px; }
         .compact-row td { padding: 4px 2px; vertical-align: middle; }
         .compact-row input { padding: 3px; font-size: 11px; }
+        .send-all-progress { background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 12px; text-align: center; font-size: 13px; display: none; }
+        .send-all-progress.active { display: block; }
+        .progress-bar { width: 100%; height: 8px; background: #ddd; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #2b8c5e; width: 0%; transition: width 0.3s; }
         @media (max-width: 700px) { th, td { font-size: 10px; padding: 4px 2px; } input { width: 55px; font-size: 10px; } button { padding: 4px 6px; font-size: 10px; } .header h1 { font-size: 18px; } .card-title { font-size: 16px; } .action-buttons button { font-size: 10px; padding: 6px 2px; } .total-debt-box { font-size: 14px; } }
         @media (max-width: 400px) { .action-buttons button { font-size: 9px; padding: 5px 2px; } }
     </style>
@@ -87,20 +90,7 @@
     </div>
 </div>
 
-<button class="settings-btn" onclick="showSettings()" id="settingsBtn" style="display:none;">⚙️</button>
-
-<div class="modal-overlay" id="settingsModal">
-    <div class="settings-modal">
-        <h3>⚙️ الإعدادات</h3>
-        <div style="text-align: right; margin-bottom: 15px; font-size: 13px; color: #666;">
-            <div id="activationStatus">الحالة: غير مفعل</div>
-            <div id="activationExpiry">ينتهي: --</div>
-        </div>
-        <div class="modal-buttons">
-            <button class="btn-cancel" onclick="closeSettings()">❌ إغلاق</button>
-        </div>
-    </div>
-</div>
+<button class="settings-btn" onclick="location.href='settings.html'" id="settingsBtn" style="display:none;">⚙️</button>
 
 <div class="container" id="mainContent" style="display:none;">
     <div class="header">
@@ -140,11 +130,16 @@
 
     <div class="card">
         <div class="card-title">👥 العملاء والحركة اليومية</div>
+        <div class="send-all-progress" id="sendAllProgress">
+            <div id="sendAllText">⏳ جاري الإرسال...</div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
         <div class="stats" id="stats">📊 جاري التحميل...</div>
         <div class="table-scroll"><div id="customersTable"></div></div>
         <div class="button-group">
-            <button onclick="addCustomer()" class="touch-btn">➕ إضافة عميل</button>
+            <button onclick="showAddCustomerModal()" class="touch-btn">➕ إضافة عميل</button>
             <button onclick="exportToExcel()" class="touch-btn">📊 تصدير Excel</button>
+            <button onclick="sendWhatsAppToAll()" class="btn-send-all touch-btn">📱 إرسال للكل</button>
         </div>
     </div>
 
@@ -169,6 +164,31 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Modal إضافة عميل -->
+<div class="modal-overlay" id="addCustomerModal">
+    <div class="modal">
+        <h3>➕ إضافة عميل جديد</h3>
+        <input type="text" id="newCustomerName" placeholder="📝 اسم العميل" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+        <input type="text" id="newCustomerPhone" placeholder="📞 رقم الهاتف" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+        <div class="modal-buttons">
+            <button class="btn-confirm" onclick="confirmAddCustomer()">✅ إضافة</button>
+            <button class="btn-cancel" onclick="closeAddCustomerModal()">❌ إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إرسال للكل -->
+<div class="modal-overlay" id="sendAllModal">
+    <div class="modal">
+        <h3>📱 إرسال رسائل واتساب للكل</h3>
+        <p id="sendAllModalText">سيتم إرسال رسائل تذكير لجميع العملاء الذين لديهم ديون</p>
+        <div class="modal-buttons">
+            <button class="btn-wa-modal" onclick="confirmSendAll()">📱 بدء الإرسال</button>
+            <button class="btn-cancel" onclick="closeSendAllModal()">❌ إلغاء</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="messageModal">
     <div class="modal">
         <h3>📨 إرسال إشعار</h3>
@@ -191,7 +211,12 @@
     let modalCustomerId = null;
     let modalNewTotal = 0;
     const TRIAL_DURATION = 86400000;
-    const MOVEMENT_DURATION = 3600000; // 1 hour
+    const MOVEMENT_DURATION = 3600000;
+    
+    // متغيرات إرسال للكل
+    let sendAllQueue = [];
+    let sendAllIndex = 0;
+    let sendAllInProgress = false;
 
     function showToast(message) {
         const toast = document.getElementById('toast');
@@ -287,41 +312,22 @@
         }
     }
 
-    function showSettings() {
-        const isActivated = localStorage.getItem('pharmacy_activated') === 'true';
-        const expiry = parseInt(localStorage.getItem('pharmacy_activation_expiry') || '0');
-        document.getElementById('activationStatus').textContent = isActivated ? 'الحالة: ✅ مفعل (سنوي)' : 'الحالة: ⏰ فترة تجريبية';
-        if (isActivated && expiry > 0) {
-            document.getElementById('activationExpiry').textContent = 'ينتهي: ' + new Date(expiry).toLocaleDateString('ar-SA');
-        } else {
-            const firstRun = parseInt(localStorage.getItem('pharmacy_first_run') || '0');
-            const now = Date.now();
-            const hoursLeft = Math.floor((TRIAL_DURATION - (now - firstRun)) / 3600000);
-            const minsLeft = Math.floor(((TRIAL_DURATION - (now - firstRun)) % 3600000) / 60000);
-            document.getElementById('activationExpiry').textContent = `متبقي: ${hoursLeft} ساعة ${minsLeft} دقيقة`;
-        }
-        document.getElementById('settingsModal').classList.add('active');
-    }
-
-    function closeSettings() {
-        document.getElementById('settingsModal').classList.remove('active');
-    }
-
     function getMovementMessage(customer, newTotal) {
         const header = "يرجى السداد بداية ونهاية كل شهر";
-        const footer = "🏥 صيدلية العابد" + "\n" + "تعز - الحوبان - مدخل البريد" + "\n" + "📞 770066128";
+        const footer = "🏥 صيدلية العابد" + "\\n" + "تعز - الحوبان - مدخل البريد" + "\\n" + "📞 770066128";
         if (customer.debt > 0 && customer.paid > 0) {
-            return "الاخ " + customer.name + "، نود اعلامكم بان تم تقيد مبلغ " + customer.debt.toLocaleString() + " ريال (فاتورة جديدة) وتم استلام مبلغ " + customer.paid.toLocaleString() + " ريال (سداد) ليصبح اجمالي الرصيد عليكم " + newTotal.toLocaleString() + " ريال." + "\n\n" + header + "\n\n" + footer;
+            return "الاخ " + customer.name + "، نود اعلامكم بان تم تقيد مبلغ " + customer.debt.toLocaleString() + " ريال (فاتورة جديدة) وتم استلام مبلغ " + customer.paid.toLocaleString() + " ريال (سداد) ليصبح اجمالي الرصيد عليكم " + newTotal.toLocaleString() + " ريال." + "\\n\\n" + header + "\\n\\n" + footer;
         } else if (customer.debt > 0) {
-            return "الاخ " + customer.name + "، نود اعلامكم بان تم تقيد مبلغ " + customer.debt.toLocaleString() + " ريال (فاتورة جديدة) ليصبح اجمالي الرصيد عليكم " + newTotal.toLocaleString() + " ريال." + "\n\n" + header + "\n\n" + footer;
+            return "الاخ " + customer.name + "، نود اعلامكم بان تم تقيد مبلغ " + customer.debt.toLocaleString() + " ريال (فاتورة جديدة) ليصبح اجمالي الرصيد عليكم " + newTotal.toLocaleString() + " ريال." + "\\n\\n" + header + "\\n\\n" + footer;
         } else if (customer.paid > 0) {
-            return "الاخ " + customer.name + "، نود اعلامكم بان تم استلام مبلغ " + customer.paid.toLocaleString() + " ريال (سداد) ليصبح اجمالي الرصيد عليكم " + newTotal.toLocaleString() + " ريال." + "\n\n" + header + "\n\n" + footer;
+            return "الاخ " + customer.name + "، نود اعلامكم بان تم استلام مبلغ " + customer.paid.toLocaleString() + " ريال (سداد) ليصبح اجمالي الرصيد عليكم " + newTotal.toLocaleString() + " ريال." + "\\n\\n" + header + "\\n\\n" + footer;
         }
         return "";
     }
 
     function getReminderMessage(customer) {
-        return "سلام الله عليكم يا " + customer.name + "، لو سمحت ممكن تسديد الحساب نهاية شهر وبداية الشهر، الصيدلية صيدليتك بأي وقت." + "\n" + "حسابك: " + (customer.totalDebt || 0).toLocaleString() + " ريال" + "\n" + "صيدلية العابد";
+        const total = (customer.totalDebt || 0) + (customer.debt || 0) - (customer.paid || 0);
+        return "سلام الله عليكم يا " + customer.name + "، لو سمحت ممكن تسديد الحساب نهاية شهر وبداية الشهر، الصيدلية صيدليتك بأي وقت." + "\\n" + "حسابك: " + total.toLocaleString() + " ريال" + "\\n" + "صيدلية العابد";
     }
 
     function saveToLocal() {
@@ -402,7 +408,7 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             const text = e.target.result;
-            const lines = text.split('\n');
+            const lines = text.split('\\n');
             let count = 0;
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
@@ -440,7 +446,7 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             const text = e.target.result;
-            const lines = text.split('\n');
+            const lines = text.split('\\n');
             let updatedCount = 0, notFoundCount = 0;
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
@@ -576,11 +582,11 @@
         if (!c) return;
         let msg = "";
         if ((c.debt || 0) > 0 && (c.paid || 0) > 0) {
-            msg = "العميل: " + c.name + "\nفاتورة جديدة: " + c.debt.toLocaleString() + " ريال\nسداد: " + c.paid.toLocaleString() + " ريال\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\n\nهل تريد إرسال إشعار؟";
+            msg = "العميل: " + c.name + "\\nفاتورة جديدة: " + c.debt.toLocaleString() + " ريال\\nسداد: " + c.paid.toLocaleString() + " ريال\\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\\n\\nهل تريد إرسال إشعار؟";
         } else if ((c.debt || 0) > 0) {
-            msg = "العميل: " + c.name + "\nفاتورة جديدة: " + c.debt.toLocaleString() + " ريال\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\n\nهل تريد إرسال إشعار؟";
+            msg = "العميل: " + c.name + "\\nفاتورة جديدة: " + c.debt.toLocaleString() + " ريال\\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\\n\\nهل تريد إرسال إشعار؟";
         } else if ((c.paid || 0) > 0) {
-            msg = "العميل: " + c.name + "\nسداد: " + c.paid.toLocaleString() + " ريال\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\n\nهل تريد إرسال إشعار؟";
+            msg = "العميل: " + c.name + "\\nسداد: " + c.paid.toLocaleString() + " ريال\\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\\n\\nهل تريد إرسال إشعار؟";
         } else {
             return;
         }
@@ -677,20 +683,176 @@
         }
     }
 
-    async function addCustomer() {
-        let name = prompt('📝 اسم العميل:'); if (!name) return;
-        let phone = prompt('📞 رقم الهاتف:'); if (!phone) return;
+    // ====== إضافة عميل جديد باستخدام Modal ======
+    function showAddCustomerModal() {
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerPhone').value = '';
+        document.getElementById('addCustomerModal').classList.add('active');
+        setTimeout(() => document.getElementById('newCustomerName').focus(), 100);
+    }
+
+    function closeAddCustomerModal() {
+        document.getElementById('addCustomerModal').classList.remove('active');
+    }
+
+    function confirmAddCustomer() {
+        const name = document.getElementById('newCustomerName').value.trim();
+        const phone = document.getElementById('newCustomerPhone').value.trim();
+        
+        if (!name) {
+            showToast('❌ أدخل اسم العميل');
+            return;
+        }
+        if (!phone) {
+            showToast('❌ أدخل رقم الهاتف');
+            return;
+        }
+        
         let id = Date.now();
-        customers.push({ id: id, name: name, phone: phone.replace(/[^0-9]/g, ''), totalDebt: 0, debt: 0, paid: 0 });
-        saveToLocal(); renderTable();
-        showToast('✅ تم الإضافة');
+        customers.push({ 
+            id: id, 
+            name: name, 
+            phone: phone.replace(/[^0-9]/g, ''), 
+            totalDebt: 0, 
+            debt: 0, 
+            paid: 0 
+        });
+        saveToLocal(); 
+        renderTable();
+        showToast('✅ تم إضافة العميل');
         if (isAndroid) Android.showToast('✅ تم إضافة العميل');
+        closeAddCustomerModal();
+    }
+
+    // ====== إرسال للكل عبر واتساب ======
+    function sendWhatsAppToAll() {
+        // تصفية العملاء الذين لديهم ديون
+        const debtCustomers = customers.filter(c => {
+            const total = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+            return total > 0 && c.phone;
+        });
+        
+        if (debtCustomers.length === 0) {
+            showToast('❌ لا يوجد عملاء لديهم ديون وأرقام هاتف');
+            return;
+        }
+        
+        document.getElementById('sendAllModalText').innerHTML = 
+            `سيتم إرسال رسائل تذكير لـ <strong>${debtCustomers.length}</strong> عميل لديهم ديون`;
+        document.getElementById('sendAllModal').classList.add('active');
+    }
+
+    function closeSendAllModal() {
+        document.getElementById('sendAllModal').classList.remove('active');
+    }
+
+    function confirmSendAll() {
+        closeSendAllModal();
+        
+        // إعداد قائمة الإرسال
+        sendAllQueue = customers.filter(c => {
+            const total = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+            return total > 0 && c.phone;
+        });
+        
+        sendAllIndex = 0;
+        sendAllInProgress = true;
+        
+        // حفظ الحالة في localStorage للاستمرار بعد العودة من واتساب
+        localStorage.setItem('pharmacy_sendall_queue', JSON.stringify(sendAllQueue.map(c => c.id)));
+        localStorage.setItem('pharmacy_sendall_index', '0');
+        localStorage.setItem('pharmacy_sendall_active', 'true');
+        
+        document.getElementById('sendAllProgress').classList.add('active');
+        updateSendAllProgress();
+        
+        // بدء الإرسال
+        processSendAllQueue();
+    }
+
+    function updateSendAllProgress() {
+        const progress = sendAllQueue.length > 0 ? (sendAllIndex / sendAllQueue.length) * 100 : 0;
+        document.getElementById('progressFill').style.width = progress + '%';
+        document.getElementById('sendAllText').innerHTML = 
+            `⏳ جاري الإرسال... ${sendAllIndex + 1} / ${sendAllQueue.length} - ${sendAllQueue[sendAllIndex]?.name || ''}`;
+    }
+
+    function processSendAllQueue() {
+        if (sendAllIndex >= sendAllQueue.length) {
+            // انتهى الإرسال
+            sendAllInProgress = false;
+            localStorage.setItem('pharmacy_sendall_active', 'false');
+            document.getElementById('sendAllProgress').classList.remove('active');
+            showToast(`✅ تم إرسال ${sendAllQueue.length} رسالة بنجاح`);
+            return;
+        }
+        
+        const c = sendAllQueue[sendAllIndex];
+        const msg = getReminderMessage(c);
+        let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+        
+        // تحديث التقدم
+        updateSendAllProgress();
+        
+        // فتح واتساب
+        if (isAndroid) {
+            Android.openWhatsApp(phone, msg);
+        } else {
+            window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+        
+        // الانتظار ثم الانتقال للتالي (للأجهزة التي لا تدعم العودة التلقائية)
+        // في WebView، عند العودة للصفحة سيتم استدعاء checkSendAllOnReturn
+    }
+
+    function continueSendAll() {
+        sendAllIndex++;
+        localStorage.setItem('pharmacy_sendall_index', sendAllIndex.toString());
+        
+        if (sendAllIndex >= sendAllQueue.length) {
+            sendAllInProgress = false;
+            localStorage.setItem('pharmacy_sendall_active', 'false');
+            document.getElementById('sendAllProgress').classList.remove('active');
+            showToast(`✅ تم إرسال ${sendAllQueue.length} رسالة بنجاح`);
+            return;
+        }
+        
+        // تأخير بسيط قبل الإرسال التالي
+        setTimeout(() => {
+            processSendAllQueue();
+        }, 500);
+    }
+
+    function checkSendAllOnReturn() {
+        // التحقق مما إذا كان هناك إرسال قيد التنفيذ
+        const isActive = localStorage.getItem('pharmacy_sendall_active') === 'true';
+        if (!isActive) return;
+        
+        const savedQueue = JSON.parse(localStorage.getItem('pharmacy_sendall_queue') || '[]');
+        const savedIndex = parseInt(localStorage.getItem('pharmacy_sendall_index') || '0');
+        
+        if (savedQueue.length > 0 && savedIndex < savedQueue.length) {
+            // إعادة بناء قائمة العملاء
+            sendAllQueue = [];
+            for (let id of savedQueue) {
+                const c = customers.find(c => c.id == id);
+                if (c) sendAllQueue.push(c);
+            }
+            sendAllIndex = savedIndex;
+            sendAllInProgress = true;
+            
+            document.getElementById('sendAllProgress').classList.add('active');
+            updateSendAllProgress();
+            
+            // الانتقال للتالي
+            continueSendAll();
+        }
     }
 
     function exportToExcel() {
         if (!customers.length) { showToast('لا توجد بيانات'); return; }
-        let csv = "رقم العميل,اسم العميل,رقم الهاتف,الرصيد الحالي,فاتورة جديدة,سداد\n";
-        for (let c of customers) { csv += `"${c.id}","${c.name}","${c.phone}","${c.totalDebt}","${c.debt || 0}","${c.paid || 0}"\n`; }
+        let csv = "رقم العميل,اسم العميل,رقم الهاتف,الرصيد الحالي,فاتورة جديدة,سداد\\n";
+        for (let c of customers) { csv += `"${c.id}","${c.name}","${c.phone}","${c.totalDebt}","${c.debt || 0}","${c.paid || 0}"\\n`; }
         try {
             if (navigator.share) {
                 navigator.share({ title: 'تقرير صيدلية العابد', text: csv }).then(() => { showToast('✅ تم المشاركة'); }).catch(() => { copyToClipboard(csv); });
@@ -728,14 +890,30 @@
         searchId = ""; searchName = ""; renderTable();
     }
 
+    // تعريف الدوال في window
     window.updateCustomer = updateCustomer; window.sendWA = sendWA; window.sendSMS = sendSMS;
-    window.deleteCustomer = deleteCustomer; window.addCustomer = addCustomer;
+    window.deleteCustomer = deleteCustomer; 
     window.exportToExcel = exportToExcel; window.searchCustomers = searchCustomers;
     window.clearSearch = clearSearch; window.setFilter = setFilter;
     window.saveToCloudNow = saveToCloudNow; window.loadFromCloudNow = loadFromCloudNow;
     window.importCustomersCSV = importCustomersCSV; window.importMovementCSV = importMovementCSV;
     window.closeModal = closeModal; window.modalSendWhatsApp = modalSendWhatsApp; window.modalSendSMS = modalSendSMS;
-    window.doActivate = doActivate; window.showSettings = showSettings; window.closeSettings = closeSettings;
+    window.doActivate = doActivate; 
+    window.showAddCustomerModal = showAddCustomerModal; window.closeAddCustomerModal = closeAddCustomerModal; window.confirmAddCustomer = confirmAddCustomer;
+    window.sendWhatsAppToAll = sendWhatsAppToAll; window.closeSendAllModal = closeSendAllModal; window.confirmSendAll = confirmSendAll;
+
+    // التحقق من الإرسال عند تحميل الصفحة (للعودة من واتساب)
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            // الصفحة عادت من cache (مثل العودة من واتساب في iOS)
+            checkSendAllOnReturn();
+        }
+    });
+    
+    window.addEventListener('focus', function() {
+        // الصفحة حصلت على التركيز (العودة من واتساب في Android)
+        checkSendAllOnReturn();
+    });
 
     initSecurity();
     if (!loadFromLocal()) { customers = []; }
@@ -743,6 +921,9 @@
     renderTable();
     if (isAndroid) { Android.showToast('✅ مرحباً بك في صيدلية العابد'); }
     setInterval(clearExpiredMovements, 300000);
+    
+    // التحقق فوراً عند التحميل
+    checkSendAllOnReturn();
 </script>
 </body>
 </html>
