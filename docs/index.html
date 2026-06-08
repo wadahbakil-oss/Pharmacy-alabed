@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>صيدلية العابد</title>
+    <!-- تضمين مكتبة SheetJS لربط زر تصدير إكسل في الصفحة الرئيسية وجعله منظماً -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1e5799 0%, #2b8c5e 100%); min-height: 100vh; padding: 10px; -webkit-user-select: none; user-select: none; overscroll-behavior: none; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; color: white; margin-bottom: 15px; padding: 10px; }
+        .header h1 { font-size: 22px; margin-bottom: 5px; }
+        .header p { font-size: 12px; opacity: 0.9; }
+        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 3px 10px rgba(0,0,0,0.2); }
+        .card-title { font-size: 18px; font-weight: bold; margin-bottom: 12px; color: #1e5799; border-bottom: 2px solid #2b8c5e; padding-bottom: 6px; }
+        .search-box { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .search-box input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; min-width: 120px; }
+        .search-box button { padding: 10px 16px; background: #2b8c5e; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; touch-action: manipulation; }
+        .filter-buttons { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .filter-buttons button { flex: 1; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; touch-action: manipulation; }
+        .stats { background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 12px; text-align: center; font-weight: bold; font-size: 13px; }
+        .total-debt-box { background: #ffebee; padding: 12px; border-radius: 8px; margin-bottom: 12px; text-align: center; font-weight: bold; font-size: 16px; color: #c62828; border: 2px solid #ef9a9a; }
+        .sync-status { background: #fff3cd; padding: 8px; border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #1e5799; color: white; padding: 8px; font-size: 12px; position: sticky; top: 0; }
+        td { padding: 6px; border-bottom: 1px solid #ddd; text-align: center; font-size: 12px; }
+        tr { height: auto; }
+        input[type="number"], input[type="text"] { padding: 5px; border-radius: 5px; border: 1px solid #ccc; width: 70px; text-align: center; font-size: 12px; }
+        button { background: #2b8c5e; color: white; border: none; padding: 6px 10px; border-radius: 5px; cursor: pointer; margin: 1px; font-size: 11px; touch-action: manipulation; }
+        .btn-wa { background: #25D366; }
+        .btn-sms { background: #2196F3; }
+        .btn-danger { background: #dc3545; }
+        .btn-save-cloud { background: #17a2b8; }
+        .btn-send-all { background: #FF9800; }
+        .button-group { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .button-group button { flex: 1; font-size: 13px; padding: 10px; }
+        .footer { text-align: center; color: white; margin-top: 15px; font-size: 11px; opacity: 0.8; }
+        .empty { text-align: center; padding: 30px; color: #999; }
+        .movement-row { background: #e8f5e9 !important; }
+        .import-section { border: 2px dashed #2b8c5e; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; text-align: center; }
+        .import-section p { font-size: 11px; color: #666; margin: 4px 0 8px 0; }
+        .import-section input[type="file"] { margin-bottom: 8px; display: inline-block; font-size: 12px; width: 100%; }
+        .btn-import { background: #6c757d; color: white; width: 100%; max-width: 250px; padding: 8px; border-radius: 5px; display: block; margin: 0 auto; }
+        .touch-btn { min-height: 44px; min-width: 44px; }
+        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-height: 60vh; overflow-y: auto; }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 25px; font-size: 14px; z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 2000; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 15px; padding: 20px; max-width: 90%; width: 350px; text-align: center; }
+        .modal h3 { color: #1e5799; margin-bottom: 15px; }
+        .modal p { margin-bottom: 15px; font-size: 14px; line-height: 1.6; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .modal-buttons button { padding: 10px 20px; font-size: 14px; }
+        .btn-confirm { background: #2b8c5e; }
+        .btn-cancel { background: #6c757d; }
+        .btn-wa-modal { background: #25D366; }
+        .activation-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #1e5799 0%, #2b8c5e 100%); display: flex; justify-content: center; align-items: center; z-index: 3000; }
+        .activation-box { background: white; border-radius: 20px; padding: 30px; max-width: 90%; width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .activation-box h2 { color: #dc3545; margin-bottom: 15px; }
+        .activation-box p { color: #666; margin-bottom: 20px; font-size: 14px; }
+        .activation-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px; text-align: center; letter-spacing: 2px; }
+        .activation-box button { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px; background: #dc3545; }
+        .activation-error { color: #dc3545; font-size: 14px; margin-top: 10px; display: none; }
+        .activation-error.show { display: block; }
+        .trial-info { background: #fff3cd; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; color: #856404; }
+        .settings-btn { position: fixed; top: 10px; left: 10px; background: rgba(255,255,255,0.2); border: none; border-radius: 50%; width: 40px; height: 40px; color: white; font-size: 18px; z-index: 100; cursor: pointer; }
+        .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 100%; }
+        .action-buttons button { width: 100%; margin: 0; padding: 8px 4px; font-size: 11px; min-height: 40px; }
+        .compact-row td { padding: 4px 2px; vertical-align: middle; }
+        .compact-row input { padding: 3px; font-size: 11px; }
+        .send-all-progress { background: #e3f2fd; padding: 10px; border-radius: 8px; margin-bottom: 12px; text-align: center; font-size: 13px; display: none; }
+        .send-all-progress.active { display: block; }
+        .progress-bar { width: 100%; height: 8px; background: #ddd; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #2b8c5e; width: 0%; transition: width 0.3s; }
+        @media (max-width: 700px) { th, td { font-size: 10px; padding: 4px 2px; } input { width: 55px; font-size: 10px; } button { padding: 4px 6px; font-size: 10px; } .header h1 { font-size: 18px; } .card-title { font-size: 16px; } .action-buttons button { font-size: 10px; padding: 6px 2px; } .total-debt-box { font-size: 14px; } }
+        @media (max-width: 400px) { .action-buttons button { font-size: 9px; padding: 5px 2px; } }
+    </style>
+</head>
+<body>
+
+<div class="activation-overlay" id="activationScreen" style="display:none;">
+    <div class="activation-box">
+        <h2>⏰ انتهت الفترة التجريبية</h2>
+        <div class="trial-info" id="trialInfo"></div>
+        <p>الرجاء إدخال كود التفعيل للاستمرار</p>
+        <input type="text" id="activationCode" placeholder="أدخل كود التفعيل" maxlength="20" onkeypress="if(event.key==='Enter')doActivate()">
+        <button onclick="doActivate()" class="touch-btn">✅ تفعيل</button>
+        <div class="activation-error" id="activationError">❌ كود التفعيل غير صحيح</div>
+    </div>
+</div>
+
+<button class="settings-btn" onclick="location.href='settings.html'" id="settingsBtn" style="display:none;">⚙️</button>
+
+<div class="container" id="mainContent" style="display:none;">
+    <div class="header">
+        <h1>👑 صيدلية العابد</h1>
+        <p>نظام إدارة العملاء والديون</p>
+    </div>
+
+    <div class="total-debt-box" id="totalDebtBox">💰 إجمالي الديون: 0 ريال</div>
+
+    <div class="card">
+        <div class="card-title">🔍 بحث سريع</div>
+        <div class="search-box">
+            <input type="text" id="searchId" placeholder="بحث برقم العميل">
+            <input type="text" id="searchName" placeholder="بحث باسم العميل">
+            <button onclick="searchCustomers()" class="touch-btn">🔍 بحث</button>
+            <button onclick="clearSearch()" class="touch-btn">🗑️ مسح</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📊 الفلترة</div>
+        <div class="filter-buttons">
+            <button id="showAllBtn" onclick="setFilter('all')" style="background:#2b8c5e; color:white;" class="touch-btn">👥 عرض جميع العملاء</button>
+            <button id="showMovementBtn" onclick="setFilter('movement')" style="background:#FF9800; color:white; opacity:0.6;" class="touch-btn">📊 عملاء الحركة اليومية فقط</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">☁️ التخزين السحابي (Firebase)</div>
+        <div class="sync-status" id="syncStatus">✅ متصل بالنظام المحلي</div>
+        <div class="button-group">
+            <button class="btn-save-cloud touch-btn" onclick="saveToCloudNow()">☁️ حفظ في السحابة</button>
+            <button class="touch-btn" onclick="loadFromCloudNow()">📥 استرجاع من السحابة</button>
+        </div>
+        <div id="cloudMsg" style="text-align: center; margin-top: 10px; font-weight: bold;"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">👥 العملاء والحركة اليومية</div>
+        <div class="send-all-progress" id="sendAllProgress">
+            <div id="sendAllText">⏳ جاري الإرسال...</div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+        <div class="stats" id="stats">📊 جاري التحميل...</div>
+        <div class="table-scroll"><div id="customersTable"></div></div>
+        <div class="button-group">
+            <button onclick="showAddCustomerModal()" class="touch-btn">➕ إضافة عميل</button>
+            <button onclick="exportToExcelOrdered()" class="touch-btn" style="background:#2e7d32;">📊 تصدير Excel منظم</button>
+            <button onclick="sendWhatsAppToAll()" class="btn-send-all touch-btn">📱 إرسال للكل</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📂 استيراد سريع (نسخ قديم لملفات النص)</div>
+        <div class="import-section">
+            <strong>📊 استيراد عملاء CSV</strong>
+            <p>مثال: 1 , محمد أحمد , 777777777 , 5000</p>
+            <input type="file" id="fileCustomers" accept=".csv,.txt">
+            <button class="btn-import touch-btn" onclick="importCustomersCSV()">📥 استيراد العملاء</button>
+        </div>
+        <div class="import-section">
+            <strong>📊 استيراد ديون CSV</strong>
+            <p>مثال: 1 , 500 أو 1 , -200</p>
+            <input type="file" id="fileMovement" accept=".csv,.txt">
+            <button class="btn-import touch-btn" onclick="importMovementCSV()">📥 استيراد الديون</button>
+        </div>
+    </div>
+
+    <div class="footer">صيدلية العابد - تعز - الحوبان - مدخل البريد - 770066128</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Modal إضافة عميل -->
+<div class="modal-overlay" id="addCustomerModal">
+    <div class="modal">
+        <h3>➕ إضافة عميل جديد</h3>
+        <input type="text" id="newCustomerName" placeholder="📝 اسم العميل" style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+        <input type="text" id="newCustomerPhone" placeholder="📞 رقم الهاتف" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ddd; border-radius:8px; font-size:14px;">
+        <div class="modal-buttons">
+            <button class="btn-confirm" onclick="confirmAddCustomer()">✅ إضافة</button>
+            <button class="btn-cancel" onclick="closeAddCustomerModal()">❌ إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إرسال للكل -->
+<div class="modal-overlay" id="sendAllModal">
+    <div class="modal">
+        <h3>📱 إرسال رسائل واتساب للكل</h3>
+        <p id="sendAllModalText">سيتم إرسال رسائل تذكير لجميع العملاء الذين لديهم ديون</p>
+        <div class="modal-buttons">
+            <button class="btn-wa-modal" onclick="confirmSendAll()">📱 بدء الإرسال</button>
+            <button class="btn-cancel" onclick="closeSendAllModal()">❌ إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="messageModal">
+    <div class="modal">
+        <h3>📨 إرسال إشعار</h3>
+        <p id="modalMessage">هل تريد إرسال رسالة للعميل؟</p>
+        <div class="modal-buttons">
+            <button class="btn-wa-modal" onclick="modalSendWhatsApp()">📱 واتساب</button>
+            <button class="btn-sms" onclick="modalSendSMS()">✉️ رسالة</button>
+            <button class="btn-cancel" onclick="closeModal()">❌ إغلاق</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const FIREBASE_URL = "https://alabeed-pharmacy-default-rtdb.firebaseio.com/customers.json";
+    const ACTIVATION_CODES_URL = "https://alabeed-pharmacy-default-rtdb.firebaseio.com/activation_codes.json";
+    let customers = [];
+    let searchId = "", searchName = "";
+    let currentFilter = "all";
+    let isAndroid = typeof Android !== 'undefined';
+    let modalCustomerId = null;
+    let modalNewTotal = 0;
+    const TRIAL_DURATION = 86400000;
+    const MOVEMENT_DURATION = 3600000;
+    
+    let sendAllQueue = [];
+    let sendAllIndex = 0;
+    let sendAllInProgress = false;
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function initSecurity() {
+        if (!localStorage.getItem('pharmacy_first_run')) {
+            localStorage.setItem('pharmacy_first_run', Date.now().toString());
+            localStorage.setItem('pharmacy_activated', 'false');
+        }
+        const firstRun = parseInt(localStorage.getItem('pharmacy_first_run') || '0');
+        const now = Date.now();
+        const isActivated = localStorage.getItem('pharmacy_activated') === 'true';
+        const activationExpiry = parseInt(localStorage.getItem('pharmacy_activation_expiry') || '0');
+        if (isActivated && activationExpiry > 0 && now > activationExpiry) {
+            localStorage.setItem('pharmacy_activated', 'false');
+            localStorage.setItem('pharmacy_first_run', Date.now().toString());
+            showToast('⚠️ انتهت صلاحية التفعيل السنوي');
+            showActivationScreen();
+            return;
+        }
+        if (isActivated) {
+            showMainApp();
+        } else if (now - firstRun > TRIAL_DURATION) {
+            showActivationScreen();
+        } else {
+            const hoursLeft = Math.floor((TRIAL_DURATION - (now - firstRun)) / 3600000);
+            const minsLeft = Math.floor(((TRIAL_DURATION - (now - firstRun)) % 3600000) / 60000);
+            showMainApp();
+            showToast(`⏰ متبقي من الفترة التجريبية: ${hoursLeft} ساعة و ${minsLeft} دقيقة`);
+        }
+    }
+
+    function showMainApp() {
+        document.getElementById('activationScreen').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        document.getElementById('settingsBtn').style.display = 'block';
+        loadFromLocal();
+        clearExpiredMovements();
+        renderTable();
+    }
+
+    function showActivationScreen() {
+        document.getElementById('activationScreen').style.display = 'flex';
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('settingsBtn').style.display = 'none';
+        document.getElementById('trialInfo').innerHTML = 'الفترة التجريبية (24 ساعة) انتهت. الرجاء إدخال كود التفعيل للاستمرار.';
+    }
+
+    async function doActivate() {
+        const code = document.getElementById('activationCode').value.trim();
+        try {
+            const response = await fetch(ACTIVATION_CODES_URL);
+            const codes = await response.json();
+            let isValid = false, isYearly = false;
+            if (codes) {
+                const codesList = Array.isArray(codes) ? codes : Object.values(codes);
+                for (let c of codesList) {
+                    if (c && c.code === code && !c.used) {
+                        isValid = true;
+                        isYearly = c.type === 'yearly';
+                        break;
+                    }
+                }
+            }
+            if (isValid) {
+                localStorage.setItem('pharmacy_activated', 'true');
+                if (isYearly) {
+                    localStorage.setItem('pharmacy_activation_type', 'yearly');
+                    localStorage.setItem('pharmacy_activation_expiry', (Date.now() + 31536000000).toString());
+                }
+                document.getElementById('activationError').classList.remove('show');
+                showToast('✅ تم التفعيل بنجاح!');
+                setTimeout(() => showMainApp(), 1500);
+            } else {
+                document.getElementById('activationError').classList.add('show');
+            }
+        } catch(e) {
+            const localCodes = ['ALABEED2024', 'PHARMACY365', 'YEMEN2024'];
+            if (localCodes.includes(code)) {
+                localStorage.setItem('pharmacy_activated', 'true');
+                localStorage.setItem('pharmacy_activation_type', 'yearly');
+                localStorage.setItem('pharmacy_activation_expiry', (Date.now() + 31536000000).toString());
+                document.getElementById('activationError').classList.remove('show');
+                showToast('✅ تم التفعيل بنجاح!');
+                setTimeout(() => showMainApp(), 1500);
+            } else {
+                document.getElementById('activationError').classList.add('show');
+            }
+        }
+    }
+
+    // جلب قوالب الرسائل المخصصة التي قام الصيدلاني بتعديلها في صفحة السيتينج
+    function getMovementMessage(customer, newTotal) {
+        const defaultTemplate = "الاخ {name}، نود اعلامكم بان تم تقيد مبلغ {debt} ريال (فاتورة جديدة) وتم استلام مبلغ {paid} ريال (سداد) ليصبح اجمالي الرصيد عليكم {total} ريال.\n\nيرجى السداد بداية ونهاية كل شهر\n\n🏥 صيدلية العابد\nتعز - الحوبان - مدخل البريد\n📞 770066128";
+        let template = localStorage.getItem('pharmacy_custom_movement') || defaultTemplate;
+        
+        return template
+            .replace(/{name}/g, customer.name)
+            .replace(/{debt}/g, (customer.debt || 0).toLocaleString())
+            .replace(/{paid}/g, (customer.paid || 0).toLocaleString())
+            .replace(/{total}/g, newTotal.toLocaleString());
+    }
+
+    function getReminderMessage(customer) {
+        const defaultTemplate = "سلام الله عليكم يا {name}، لو سمحت ممكن تسديد الحساب نهاية شهر وبداية الشهر، الصيدلية صيدليتك بأي وقت.\nحسابك: {total} ريال\nصيدلية العابد";
+        let template = localStorage.getItem('pharmacy_custom_reminder') || defaultTemplate;
+        const total = (customer.totalDebt || 0) + (customer.debt || 0) - (customer.paid || 0);
+        
+        return template
+            .replace(/{name}/g, customer.name)
+            .replace(/{total}/g, total.toLocaleString());
+    }
+
+    function saveToLocal() {
+        localStorage.setItem('pharmacy_customers', JSON.stringify(customers));
+        document.getElementById('syncStatus').innerHTML = '✅ محلي: ' + new Date().toLocaleTimeString();
+    }
+
+    function loadFromLocal() {
+        const saved = localStorage.getItem('pharmacy_customers');
+        if (saved) {
+            customers = JSON.parse(saved);
+            return true;
+        }
+        return false;
+    }
+
+    function clearExpiredMovements() {
+        const now = Date.now();
+        let cleared = 0;
+        for (let c of customers) {
+            if (c.movementTime && (now - c.movementTime > MOVEMENT_DURATION) && ((c.debt || 0) > 0 || (c.paid || 0) > 0)) {
+                c.totalDebt = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+                c.debt = 0;
+                c.paid = 0;
+                c.movementTime = 0;
+                cleared++;
+            }
+        }
+        if (cleared > 0) {
+            saveToLocal();
+            renderTable();
+            showToast(`⏰ تم تصفير حركة ${cleared} عميل (مرت ساعة)`);
+        }
+    }
+
+    async function saveToCloudNow() {
+        try {
+            document.getElementById('cloudMsg').innerHTML = '⏳ جاري الرفع...';
+            const response = await fetch(FIREBASE_URL, {
+                method: 'PUT',
+                body: JSON.stringify(customers),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                document.getElementById('cloudMsg').innerHTML = '<span style="color: #2b8c5e;">✅ تم الحفظ السحابي!</span>';
+                showToast('✅ تم الحفظ السحابي بنجاح');
+            } else {
+                document.getElementById('cloudMsg').innerHTML = '<span style="color: #dc3545;">❌ فشل الحفظ</span>';
+            }
+        } catch(e) {
+            document.getElementById('cloudMsg').innerHTML = '<span style="color: #dc3545;">❌ خطأ في الاتصال</span>';
+        }
+        setTimeout(() => document.getElementById('cloudMsg').innerHTML = '', 5000);
+    }
+
+    async function loadFromCloudNow() {
+        try {
+            document.getElementById('syncStatus').innerHTML = '⏳ جاري التحميل...';
+            const response = await fetch(FIREBASE_URL);
+            const data = await response.json();
+            if (data) {
+                customers = Array.isArray(data) ? data.filter(item => item !== null) : Object.values(data);
+                saveToLocal();
+                renderTable();
+                document.getElementById('syncStatus').innerHTML = '✅ تم مزامنة البيانات';
+                showToast('✅ تم تحميل البيانات السحابية');
+            } else {
+                document.getElementById('syncStatus').innerHTML = '⚠️ السحابة فارغة';
+            }
+        } catch(e) {
+            document.getElementById('syncStatus').innerHTML = '⚠️ فشل الاتصال بالسحابة';
+        }
+    }
+
+    function importCustomersCSV() {
+        const fileInput = document.getElementById('fileCustomers');
+        if (!fileInput.files.length) { showToast('❌ اختر ملف أولاً'); return; }
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n');
+            let count = 0;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const columns = line.split(',');
+                if (columns.length >= 4) {
+                    const id = columns[0].trim();
+                    const name = columns[1].trim();
+                    const phone = columns[2].trim().replace(/[^0-9]/g, '');
+                    const totalDebt = parseFloat(columns[3].trim()) || 0;
+                    if (isNaN(id)) continue;
+                    let existingIdx = customers.findIndex(c => c.id == id);
+                    if (existingIdx !== -1) {
+                        customers[existingIdx].name = name;
+                        customers[existingIdx].phone = phone;
+                        customers[existingIdx].totalDebt = totalDebt;
+                    } else {
+                        customers.push({ id: parseInt(id), name: name, phone: phone, totalDebt: totalDebt, debt: 0, paid: 0 });
+                    }
+                    count++;
+                }
+            }
+            saveToLocal();
+            renderTable();
+            showToast(`✅ تم استيراد ${count} عميل`);
+            fileInput.value = '';
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    function importMovementCSV() {
+        const fileInput = document.getElementById('fileMovement');
+        if (!fileInput.files.length) { showToast('❌ اختر ملف أولاً'); return; }
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            const lines = text.split('\n');
+            let updatedCount = 0, notFoundCount = 0;
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const columns = line.split(',');
+                if (columns.length >= 2) {
+                    const id = columns[0].trim();
+                    const amount = parseFloat(columns[1].trim()) || 0;
+                    if (isNaN(id)) continue;
+                    let customer = customers.find(c => c.id == id);
+                    if (customer) {
+                        if (amount > 0) {
+                            customer.debt = (customer.debt || 0) + amount;
+                        } else if (amount < 0) {
+                            customer.paid = (customer.paid || 0) + Math.abs(amount);
+                        }
+                        updatedCount++;
+                    } else {
+                        notFoundCount++;
+                    }
+                }
+            }
+            saveToLocal();
+            renderTable();
+            if (notFoundCount > 0) {
+                showToast(`⚠️ تحديث ${updatedCount} عميل - ${notFoundCount} غير موجودين`);
+            } else {
+                showToast(`✅ تم تطبيق الحركة لـ ${updatedCount} عميل`);
+            }
+            fileInput.value = '';
+        };
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    function setFilter(filter) {
+        currentFilter = filter;
+        const allBtn = document.getElementById('showAllBtn');
+        const movementBtn = document.getElementById('showMovementBtn');
+        if (filter === 'all') {
+            allBtn.style.background = "#2b8c5e"; allBtn.style.opacity = "1";
+            movementBtn.style.background = "#FF9800"; movementBtn.style.opacity = "0.6";
+        } else {
+            allBtn.style.background = "#2b8c5e"; allBtn.style.opacity = "0.6";
+            movementBtn.style.background = "#FF9800"; movementBtn.style.opacity = "1";
+        }
+        renderTable();
+    }
+
+    function getFilteredCustomers() {
+        let filtered = [...customers];
+        if (searchId) filtered = filtered.filter(c => c.id.toString().includes(searchId));
+        if (searchName) filtered = filtered.filter(c => c.name.includes(searchName));
+        if (currentFilter === 'movement') {
+            filtered = filtered.filter(c => (c.debt || 0) > 0 || (c.paid || 0) > 0);
+        }
+        return filtered;
+    }
+
+    function calculateTotalDebt() {
+        let total = 0;
+        for (let c of customers) {
+            total += (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+        }
+        return total;
+    }
+
+    function renderTable() {
+        const filtered = getFilteredCustomers();
+        const totalDebt = calculateTotalDebt();
+        document.getElementById('totalDebtBox').innerHTML = `💰 إجمالي الديون: ${totalDebt.toLocaleString()} ريال`;
+        if (!filtered.length) {
+            document.getElementById('customersTable').innerHTML = '<div class="empty">📭 لا يوجد عملاء معروضين</div>';
+            document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: 0 | 🔴 حركة اليوم: ${customers.filter(c => (c.debt||0)>0 || (c.paid||0)>0).length}`;
+            return;
+        }
+        let html = `<table><thead><tr><th>#</th><th>الاسم</th><th>الجوال</th><th>الرصيد الرئيسي</th><th>فاتورة(+)</th><th>سداد(-)</th><th>الرصيد الجديد</th><th>إجراءات</th></tr></thead><tbody>`;
+        for (let c of filtered) {
+            const newTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+            const hasMovement = (c.debt || 0) > 0 || (c.paid || 0) > 0;
+            const rowClass = hasMovement ? 'movement-row compact-row' : 'compact-row';
+            let timeBadge = '';
+            if (hasMovement && c.movementTime) {
+                const remaining = MOVEMENT_DURATION - (Date.now() - c.movementTime);
+                if (remaining > 0) {
+                    const mins = Math.floor(remaining / 60000);
+                    timeBadge = `<span style="color:#FF9800; font-size:9px;">⏰ ${mins}د</span>`;
+                }
+            }
+            html += `<tr class="${rowClass}">
+                <td>${c.id}</td>
+                <td><strong>${c.name}</strong> ${timeBadge}</td>
+                <td><input type="text" id="phone_${c.id}" value="${c.phone || ''}" style="width:85px; font-size:11px;"></td>
+                <td><input type="number" id="balance_${c.id}" value="${c.totalDebt || 0}" step="any" style="width:65px; font-size:11px;"></td>
+                <td><input type="number" id="debt_${c.id}" value="${c.debt || 0}" step="any" style="width:55px; font-size:11px;"></td>
+                <td><input type="number" id="paid_${c.id}" value="${c.paid || 0}" step="any" style="width:55px; font-size:11px;"></td>
+                <td id="new_${c.id}" style="color:#2b8c5e; font-weight:bold; font-size:11px;">${newTotal.toLocaleString()}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button onclick="updateCustomer(${c.id})" class="touch-btn" title="حفظ">💾</button>
+                        <button class="btn-wa touch-btn" onclick="sendWA(${c.id})" title="واتساب">📱</button>
+                        <button class="btn-sms touch-btn" onclick="sendSMS(${c.id})" title="رسالة">✉️</button>
+                        <button class="btn-danger touch-btn" onclick="deleteCustomer(${c.id})" title="حذف">🗑️</button>
+                    </div>
+                </td>
+            </tr>`;
+        }
+        html += `</tbody></table>`;
+        document.getElementById('customersTable').innerHTML = html;
+        document.getElementById('stats').innerHTML = `📊 إجمالي: ${customers.length} | معروض: ${filtered.length} | 🔴 حركة اليوم: ${customers.filter(c => (c.debt||0)>0 || (c.paid||0)>0).length}`;
+        for (let c of filtered) {
+            if (document.getElementById(`debt_${c.id}`)) {
+                document.getElementById(`debt_${c.id}`).oninput = () => updateNewTotal(c.id);
+                document.getElementById(`paid_${c.id}`).oninput = () => updateNewTotal(c.id);
+            }
+        }
+    }
+
+    function updateNewTotal(id) {
+        const c = customers.find(c => c.id == id);
+        if (c) {
+            const debt = parseFloat(document.getElementById(`debt_${id}`).value) || 0;
+            const paid = parseFloat(document.getElementById(`paid_${id}`).value) || 0;
+            const newTotal = (c.totalDebt || 0) + debt - paid;
+            const newSpan = document.getElementById(`new_${id}`);
+            if (newSpan) newSpan.innerHTML = newTotal.toLocaleString();
+        }
+    }
+
+    function showModal(customerId, newTotal) {
+        modalCustomerId = customerId;
+        modalNewTotal = newTotal;
+        const c = customers.find(c => c.id == customerId);
+        if (!c) return;
+        let msg = "";
+        if ((c.debt || 0) > 0 && (c.paid || 0) > 0) {
+            msg = "العميل: " + c.name + "\nفاتورة جديدة: " + c.debt.toLocaleString() + " ريال\nسداد: " + c.paid.toLocaleString() + " ريال\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\n\nهل تريد إرسال إشعار؟";
+        } else if ((c.debt || 0) > 0) {
+            msg = "العميل: " + c.name + "\nفاتورة جديدة: " + c.debt.toLocaleString() + " ريال\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\n\nهل تريد إرسال إشعار؟";
+        } else if ((c.paid || 0) > 0) {
+            msg = "العميل: " + c.name + "\nسداد: " + c.paid.toLocaleString() + " ريال\nالرصيد الجديد: " + newTotal.toLocaleString() + " ريال\n\nهل تريد إرسال إشعار؟";
+        } else {
+            return;
+        }
+        document.getElementById('modalMessage').innerText = msg;
+        document.getElementById('messageModal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('messageModal').classList.remove('active');
+        modalCustomerId = null;
+    }
+
+    function modalSendWhatsApp() {
+        if (modalCustomerId) { sendWA(modalCustomerId); }
+        closeModal();
+    }
+
+    function modalSendSMS() {
+        if (modalCustomerId) { sendSMS(modalCustomerId); }
+        closeModal();
+    }
+
+    async function updateCustomer(id) {
+        const c = customers.find(c => c.id == id);
+        if (!c) return;
+        c.phone = document.getElementById(`phone_${id}`).value;
+        const inputDebt = parseFloat(document.getElementById(`debt_${id}`).value) || 0;
+        const inputPaid = parseFloat(document.getElementById(`paid_${id}`).value) || 0;
+        const inputBalance = parseFloat(document.getElementById(`balance_${id}`).value) || 0;
+        
+        const now = Date.now();
+        const lastMovementTime = c.movementTime || 0;
+        
+        if (lastMovementTime > 0 && (now - lastMovementTime > MOVEMENT_DURATION)) {
+            c.totalDebt = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+            c.debt = 0;
+            c.paid = 0;
+            showToast(`⏰ تم تصفير حركة ${c.name} (مرت ساعة)`);
+        }
+        
+        if (inputBalance !== (c.totalDebt || 0)) {
+            c.totalDebt = inputBalance;
+        }
+        
+        c.debt = inputDebt;
+        c.paid = inputPaid;
+        c.movementTime = now;
+        
+        const finalTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+        
+        saveToLocal();
+        renderTable();
+        showToast(`✅ تم حفظ ${c.name}`);
+        if (isAndroid) Android.showToast(`✅ تم حفظ العميل: ${c.name}`);
+        if ((c.debt || 0) > 0 || (c.paid || 0) > 0) {
+            showModal(id, finalTotal);
+        }
+    }
+
+    async function deleteCustomer(id) {
+        if (confirm('هل أنت متأكد من الحذف؟')) {
+            customers = customers.filter(c => c.id != id);
+            saveToLocal(); renderTable();
+            showToast('✅ تم الحذف');
+            if (isAndroid) Android.showToast('✅ تم الحذف محلياً');
+        }
+    }
+
+    function sendWA(id) {
+        const c = customers.find(c => c.id == id);
+        if (!c || !c.phone) { showToast('❌ رقم غير موجود'); if (isAndroid) Android.showToast('❌ رقم غير موجود'); return; }
+        let msg = "";
+        const newTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+        if ((c.debt || 0) > 0 || (c.paid || 0) > 0) { msg = getMovementMessage(c, newTotal); } else { msg = getReminderMessage(c); }
+        let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+        if (isAndroid) {
+            Android.openWhatsApp(phone, msg);
+        } else {
+            window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    }
+
+    function sendSMS(id) {
+        const c = customers.find(c => c.id == id);
+        if (!c || !c.phone) { showToast('❌ رقم غير موجود'); if (isAndroid) Android.showToast('❌ رقم غير موجود'); return; }
+        let msg = "";
+        const newTotal = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+        if ((c.debt || 0) > 0 || (c.paid || 0) > 0) { msg = getMovementMessage(c, newTotal); } else { msg = getReminderMessage(c); }
+        let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+        if (isAndroid) {
+            Android.openSMS(phone, msg);
+        } else {
+            window.location.href = `sms:+967${phone}?body=${encodeURIComponent(msg)}`;
+        }
+    }
+
+    function showAddCustomerModal() {
+        document.getElementById('newCustomerName').value = '';
+        document.getElementById('newCustomerPhone').value = '';
+        document.getElementById('addCustomerModal').classList.add('active');
+        setTimeout(() => document.getElementById('newCustomerName').focus(), 100);
+    }
+
+    function closeAddCustomerModal() {
+        document.getElementById('addCustomerModal').classList.remove('active');
+    }
+
+    function confirmAddCustomer() {
+        const name = document.getElementById('newCustomerName').value.trim();
+        const phone = document.getElementById('newCustomerPhone').value.trim();
+        
+        if (!name) { showToast('❌ أدخل اسم العميل'); return; }
+        if (!phone) { showToast('❌ أدخل رقم الهاتف'); return; }
+        
+        let id = Date.now();
+        customers.push({ 
+            id: id, 
+            name: name, 
+            phone: phone.replace(/[^0-9]/g, ''), 
+            totalDebt: 0, 
+            debt: 0, 
+            paid: 0 
+        });
+        saveToLocal(); 
+        renderTable();
+        showToast('✅ تم إضافة العميل');
+        if (isAndroid) Android.showToast('✅ تم إضافة العميل');
+        closeAddCustomerModal();
+    }
+
+    function sendWhatsAppToAll() {
+        const debtCustomers = customers.filter(c => {
+            const total = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+            return total > 0 && c.phone;
+        });
+        
+        if (debtCustomers.length === 0) {
+            showToast('❌ لا يوجد عملاء لديهم ديون وأرقام هاتف');
+            return;
+        }
+        
+        document.getElementById('sendAllModalText').innerHTML = 
+            `سيتم إرسال رسائل تذكير لـ <strong>${debtCustomers.length}</strong> عميل لديهم ديون`;
+        document.getElementById('sendAllModal').classList.add('active');
+    }
+
+    function closeSendAllModal() {
+        document.getElementById('sendAllModal').classList.remove('active');
+    }
+
+    function confirmSendAll() {
+        closeSendAllModal();
+        sendAllQueue = customers.filter(c => {
+            const total = (c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0);
+            return total > 0 && c.phone;
+        });
+        
+        sendAllIndex = 0;
+        sendAllInProgress = true;
+        
+        localStorage.setItem('pharmacy_sendall_queue', JSON.stringify(sendAllQueue.map(c => c.id)));
+        localStorage.setItem('pharmacy_sendall_index', '0');
+        localStorage.setItem('pharmacy_sendall_active', 'true');
+        
+        document.getElementById('sendAllProgress').classList.add('active');
+        updateSendAllProgress();
+        processSendAllQueue();
+    }
+
+    function updateSendAllProgress() {
+        const progress = sendAllQueue.length > 0 ? (sendAllIndex / sendAllQueue.length) * 100 : 0;
+        document.getElementById('progressFill').style.width = progress + '%';
+        document.getElementById('sendAllText').innerHTML = 
+            `⏳ جاري الإرسال... ${sendAllIndex + 1} / ${sendAllQueue.length} - ${sendAllQueue[sendAllIndex]?.name || ''}`;
+    }
+
+    function processSendAllQueue() {
+        if (sendAllIndex >= sendAllQueue.length) {
+            sendAllInProgress = false;
+            localStorage.setItem('pharmacy_sendall_active', 'false');
+            document.getElementById('sendAllProgress').classList.remove('active');
+            showToast(`✅ تم إرسال ${sendAllQueue.length} رسالة بنجاح`);
+            return;
+        }
+        
+        const c = sendAllQueue[sendAllIndex];
+        const msg = getReminderMessage(c);
+        let phone = c.phone.replace(/^0+/, '').replace(/^967/, '').replace(/[^0-9]/g, '');
+        
+        updateSendAllProgress();
+        
+        if (isAndroid) {
+            Android.openWhatsApp(phone, msg);
+        } else {
+            window.open(`https://wa.me/967${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    }
+
+    function continueSendAll() {
+        sendAllIndex++;
+        localStorage.setItem('pharmacy_sendall_index', sendAllIndex.toString());
+        
+        if (sendAllIndex >= sendAllQueue.length) {
+            sendAllInProgress = false;
+            localStorage.setItem('pharmacy_sendall_active', 'false');
+            document.getElementById('sendAllProgress').classList.remove('active');
+            showToast(`✅ تم إرسال ${sendAllQueue.length} رسالة بنجاح`);
+            return;
+        }
+        
+        setTimeout(() => {
+            processSendAllQueue();
+        }, 500);
+    }
+
+    function checkSendAllOnReturn() {
+        const isActive = localStorage.getItem('pharmacy_sendall_active') === 'true';
+        if (!isActive) return;
+        
+        const savedQueue = JSON.parse(localStorage.getItem('pharmacy_sendall_queue') || '[]');
+        const savedIndex = parseInt(localStorage.getItem('pharmacy_sendall_index') || '0');
+        
+        if (savedQueue.length > 0 && savedIndex < savedQueue.length) {
+            sendAllQueue = [];
+            for (let id of savedQueue) {
+                const c = customers.find(c => c.id == id);
+                if (c) sendAllQueue.push(c);
+            }
+            sendAllIndex = savedIndex;
+            sendAllInProgress = true;
+            
+            document.getElementById('sendAllProgress').classList.add('active');
+            updateSendAllProgress();
+            continueSendAll();
+        }
+    }
+
+    // تصدير ملف إكسل المنظم من الواجهة الرئيسية مباشرة
+    function exportToExcelOrdered() {
+        if (!customers.length) { showToast('لا توجد بيانات لتصديرها'); return; }
+        
+        const rows = customers.map(c => ({
+            "رقم العميل": c.id,
+            "اسم العميل": c.name,
+            "رقم الهاتف": c.phone || "",
+            "الرصيد الرئيسي السابق": c.totalDebt || 0,
+            "فاتورة جديدة (+)": c.debt || 0,
+            "سداد واصل (-)": c.paid || 0,
+            "إجمالي الرصيد النهائي": ((c.totalDebt || 0) + (c.debt || 0) - (c.paid || 0))
+        }));
+        
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "كشف الحسابات");
+        
+        worksheet['!dir'] = "rtl"; // تنظيم التنسيق لليمين
+        
+        const dateStr = new Date().toISOString().slice(0,10);
+        XLSX.writeFile(workbook, `صيدلية_العابد_الرئيسية_${dateStr}.xlsx`);
+        showToast('✅ تم تصدير ملف إكسل المنظم بنجاح');
+    }
+
+    function searchCustomers() {
+        searchId = document.getElementById('searchId').value.trim();
+        searchName = document.getElementById('searchName').value.trim();
+        renderTable();
+    }
+
+    function clearSearch() {
+        document.getElementById('searchId').value = ''; document.getElementById('searchName').value = '';
+        searchId = ""; searchName = ""; renderTable();
+    }
+
+    window.updateCustomer = updateCustomer; window.sendWA = sendWA; window.sendSMS = sendSMS;
+    window.deleteCustomer = deleteCustomer; 
+    window.exportToExcelOrdered = exportToExcelOrdered; window.searchCustomers = searchCustomers;
+    window.clearSearch = clearSearch; window.setFilter = setFilter;
+    window.saveToCloudNow = saveToCloudNow; window.loadFromCloudNow = loadFromCloudNow;
+    window.importCustomersCSV = importCustomersCSV; window.importMovementCSV = importMovementCSV;
+    window.closeModal = closeModal; window.modalSendWhatsApp = modalSendWhatsApp; window.modalSendSMS = modalSendSMS;
+    window.doActivate = doActivate; 
+    window.showAddCustomerModal = showAddCustomerModal; window.closeAddCustomerModal = closeAddCustomerModal; window.confirmAddCustomer = confirmAddCustomer;
+    window.sendWhatsAppToAll = sendWhatsAppToAll; window.closeSendAllModal = closeSendAllModal; window.confirmSendAll = confirmSendAll;
+
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) { checkSendAllOnReturn(); }
+    });
+    
+    window.addEventListener('focus', function() {
+        checkSendAllOnReturn();
+    });
+
+    initSecurity();
+    if (!loadFromLocal()) { customers = []; }
+    clearExpiredMovements();
+    renderTable();
+    if (isAndroid) { Android.showToast('✅ مرحباً بك في صيدلية العابد'); }
+    setInterval(clearExpiredMovements, 300000);
+    
+    checkSendAllOnReturn();
+</script>
+</body>
+</html>
